@@ -1,0 +1,198 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-sans: 'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: #0f172a;
+    background-color: #f8fafc;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  html.dark body {
+    color: #f1f5f9;
+    background-color: #020617;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono, .tabular-nums {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* High-contrast Dark Mode surface, typography, border, and widget adaptations when .dark class is active */
+.dark .bg-slate-50 {
+  background-color: #020617;
+}
+
+.dark .bg-white {
+  background-color: #0f172a;
+}
+
+.dark .bg-white\/95 {
+  background-color: rgba(15, 23, 42, 0.95);
+}
+
+.dark .bg-slate-50\/80,
+.dark .bg-slate-50\/70,
+.dark .bg-slate-50\/60,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-100,
+.dark .bg-slate-200\/70 {
+  background-color: #1e293b;
+}
+
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-50\/70:hover,
+.dark .hover\:bg-slate-50\/60:hover,
+.dark .hover\:bg-slate-50\/50:hover,
+.dark .hover\:bg-slate-100:hover,
+.dark .hover\:bg-slate-200\/70:hover {
+  background-color: #1e293b;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-200\/80,
+.dark .border-slate-100,
+.dark .border-slate-300 {
+  border-color: #334155;
+}
+
+.dark .divide-slate-100 > :not(:last-child),
+.dark .divide-slate-200 > :not(:last-child) {
+  border-color: #1e293b;
+}
+
+.dark .text-slate-900 {
+  color: #f8fafc;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: #e2e8f0;
+}
+
+.dark .text-slate-600 {
+  color: #cbd5e1;
+}
+
+.dark .text-slate-500,
+.dark .text-slate-400 {
+  color: #94a3b8;
+}
+
+/* High-contrast semantic status surfaces in low-light dark mode */
+.dark .bg-blue-50,
+.dark .bg-blue-50\/70,
+.dark .bg-blue-50\/60,
+.dark .bg-blue-50\/50,
+.dark .bg-blue-50\/40 {
+  background-color: rgba(30, 58, 138, 0.32);
+}
+
+.dark .border-blue-200,
+.dark .border-blue-300 {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.dark .text-blue-950,
+.dark .text-blue-900,
+.dark .text-blue-800,
+.dark .text-blue-700,
+.dark .text-blue-600 {
+  color: #93c5fd;
+}
+
+.dark .bg-emerald-50,
+.dark .bg-emerald-50\/70,
+.dark .bg-emerald-50\/60 {
+  background-color: rgba(6, 78, 59, 0.38);
+}
+
+.dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.dark .text-emerald-950,
+.dark .text-emerald-900,
+.dark .text-emerald-800,
+.dark .text-emerald-700 {
+  color: #6ee7b7;
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-50\/95 {
+  background-color: rgba(120, 53, 15, 0.35);
+}
+
+.dark .border-amber-200,
+.dark .border-amber-300 {
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.dark .text-amber-950,
+.dark .text-amber-900,
+.dark .text-amber-800,
+.dark .text-amber-700 {
+  color: #fcd34d;
+}
+
+.dark .bg-red-50,
+.dark .bg-red-50\/20 {
+  background-color: rgba(127, 29, 29, 0.35);
+}
+
+.dark .border-red-200,
+.dark .border-red-300 {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.dark .text-red-950,
+.dark .text-red-900,
+.dark .text-red-800,
+.dark .text-red-700,
+.dark .text-red-600 {
+  color: #fca5a5;
+}
+
+.dark .bg-sky-50,
+.dark .bg-sky-50\/60 {
+  background-color: rgba(12, 74, 110, 0.35);
+}
+
+.dark .border-sky-200 {
+  border-color: rgba(14, 165, 233, 0.45);
+}
+
+.dark .text-sky-950,
+.dark .text-sky-900,
+.dark .text-sky-800,
+.dark .text-sky-700 {
+  color: #7dd3fc;
+}
+
+/* Recharts axes & grid lines in Dark Mode */
+.dark .recharts-cartesian-axis-tick-value {
+  fill: #cbd5e1 !important;
+}
+
+.dark .recharts-cartesian-grid line {
+  stroke: #1e293b !important;
+}
+
+.dark .recharts-default-tooltip {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
