@@ -124,6 +124,12 @@ function InnerMapController({
   const polylinesRef = useRef<google.maps.Polyline[]>([]);
   const heatmapPolylinesRef = useRef<google.maps.Polyline[]>([]);
   const trafficLayerRef = useRef<google.maps.TrafficLayer | null>(null);
+  const routeCacheRef = useRef<{
+    cacheKey: string;
+    resolvedOrigin: LiveResolvedPlace | null;
+    resolvedDest: LiveResolvedPlace | null;
+    routes: any[];
+  } | null>(null);
 
   const [routePathsByRouteId, setRoutePathsByRouteId] = useState<
     Record<string, Array<{ lat: number; lng: number }>>
@@ -159,77 +165,146 @@ function InnerMapController({
     };
   }, [map, mapsLib, showTrafficLayer]);
 
-  // Resolve Origin & Destination via Places API (New) and compute route via Routes API
+  // Resolve Origin & Destination via Places API (New) and compute route via Routes API (with caching to preserve API quota)
   useEffect(() => {
-    if (!map || !routesLib || !originQuery || !destinationQuery) return;
+    const cleanOrig = originQuery.trim();
+    const cleanDest = destinationQuery.trim();
+    if (!map || !routesLib || !cleanOrig || !cleanDest) {
+      polylinesRef.current.forEach((p) => p.setMap(null));
+      polylinesRef.current = [];
+      setOriginPlace(null);
+      setDestinationPlace(null);
+      setRoutePathsByRouteId({});
+      setRouteLoading(false);
+      setRouteError(null);
+      return;
+    }
 
     let cancelled = false;
-    setRouteLoading(true);
     setRouteError(null);
 
     // Cleanup old polylines
     polylinesRef.current.forEach((p) => p.setMap(null));
     polylinesRef.current = [];
 
+    const cacheKey = `${cleanOrig.toLowerCase()}__${cleanDest.toLowerCase()}__${refreshTrigger}`;
+
     async function resolveAndCompute() {
       let resolvedOrigin: LiveResolvedPlace | null = null;
       let resolvedDest: LiveResolvedPlace | null = null;
+      let routes: any[] = [];
 
-      if (placesLib && (placesLib as any).Place?.searchByText) {
+      if (
+        routeCacheRef.current &&
+        routeCacheRef.current.cacheKey === cacheKey &&
+        routeCacheRef.current.routes.length > 0
+      ) {
+        resolvedOrigin = routeCacheRef.current.resolvedOrigin;
+        resolvedDest = routeCacheRef.current.resolvedDest;
+        routes = routeCacheRef.current.routes;
+      } else {
+        setRouteLoading(true);
+        if (placesLib && (placesLib as any).Place?.searchByText) {
+          try {
+            const [origRes, destRes] = await Promise.all([
+              (placesLib as any).Place.searchByText({
+                textQuery: cleanOrig,
+                fields: ['id', 'displayName', 'formattedAddress', 'location'],
+                maxResultCount: 1,
+              }),
+              (placesLib as any).Place.searchByText({
+                textQuery: cleanDest,
+                fields: ['id', 'displayName', 'formattedAddress', 'location'],
+                maxResultCount: 1,
+              }),
+            ]);
+
+            const origPlaceObj = origRes?.places?.[0];
+            if (origPlaceObj && origPlaceObj.location) {
+              resolvedOrigin = {
+                id: origPlaceObj.id || 'origin',
+                displayName: origPlaceObj.displayName || cleanOrig,
+                formattedAddress: origPlaceObj.formattedAddress || cleanOrig,
+                location: {
+                  lat:
+                    typeof origPlaceObj.location.lat === 'function'
+                      ? origPlaceObj.location.lat()
+                      : origPlaceObj.location.lat,
+                  lng:
+                    typeof origPlaceObj.location.lng === 'function'
+                      ? origPlaceObj.location.lng()
+                      : origPlaceObj.location.lng,
+                },
+              };
+            }
+
+            const destPlaceObj = destRes?.places?.[0];
+            if (destPlaceObj && destPlaceObj.location) {
+              resolvedDest = {
+                id: destPlaceObj.id || 'destination',
+                displayName: destPlaceObj.displayName || cleanDest,
+                formattedAddress:
+                  destPlaceObj.formattedAddress || cleanDest,
+                location: {
+                  lat:
+                    typeof destPlaceObj.location.lat === 'function'
+                      ? destPlaceObj.location.lat()
+                      : destPlaceObj.location.lat,
+                  lng:
+                    typeof destPlaceObj.location.lng === 'function'
+                      ? destPlaceObj.location.lng()
+                      : destPlaceObj.location.lng,
+                },
+              };
+            }
+          } catch (placeErr) {
+            checkAndDispatchQuotaError(placeErr);
+          }
+        }
+
+        if (cancelled) return;
+
         try {
-          const [origRes, destRes] = await Promise.all([
-            (placesLib as any).Place.searchByText({
-              textQuery: originQuery,
-              fields: ['id', 'displayName', 'formattedAddress', 'location'],
-              maxResultCount: 1,
-            }),
-            (placesLib as any).Place.searchByText({
-              textQuery: destinationQuery,
-              fields: ['id', 'displayName', 'formattedAddress', 'location'],
-              maxResultCount: 1,
-            }),
-          ]);
+          const request: Record<string, unknown> = {
+            origin: resolvedOrigin ? resolvedOrigin.location : cleanOrig,
+            destination: resolvedDest ? resolvedDest.location : cleanDest,
+            travelMode: 'DRIVING',
+            computeAlternativeRoutes: true,
+            fields: [
+              'path',
+              'distanceMeters',
+              'durationMillis',
+              'viewport',
+              'legs',
+              'description',
+            ],
+          };
 
-          const origPlaceObj = origRes?.places?.[0];
-          if (origPlaceObj && origPlaceObj.location) {
-            resolvedOrigin = {
-              id: origPlaceObj.id || 'origin',
-              displayName: origPlaceObj.displayName || originQuery,
-              formattedAddress: origPlaceObj.formattedAddress || originQuery,
-              location: {
-                lat:
-                  typeof origPlaceObj.location.lat === 'function'
-                    ? origPlaceObj.location.lat()
-                    : origPlaceObj.location.lat,
-                lng:
-                  typeof origPlaceObj.location.lng === 'function'
-                    ? origPlaceObj.location.lng()
-                    : origPlaceObj.location.lng,
-              },
-            };
-          }
+          const RouteClass = (routesLib as any).Route;
+          const response = await RouteClass.computeRoutes(request);
+          if (cancelled) return;
 
-          const destPlaceObj = destRes?.places?.[0];
-          if (destPlaceObj && destPlaceObj.location) {
-            resolvedDest = {
-              id: destPlaceObj.id || 'destination',
-              displayName: destPlaceObj.displayName || destinationQuery,
-              formattedAddress:
-                destPlaceObj.formattedAddress || destinationQuery,
-              location: {
-                lat:
-                  typeof destPlaceObj.location.lat === 'function'
-                    ? destPlaceObj.location.lat()
-                    : destPlaceObj.location.lat,
-                lng:
-                  typeof destPlaceObj.location.lng === 'function'
-                    ? destPlaceObj.location.lng()
-                    : destPlaceObj.location.lng,
-              },
-            };
+          setRouteLoading(false);
+          routes = response?.routes || [];
+          if (routes.length === 0) {
+            setRouteError('No driving route returned for this corridor.');
+            return;
           }
-        } catch (placeErr) {
-          checkAndDispatchQuotaError(placeErr);
+          routeCacheRef.current = {
+            cacheKey,
+            resolvedOrigin,
+            resolvedDest,
+            routes,
+          };
+        } catch (err: any) {
+          if (cancelled) return;
+          setRouteLoading(false);
+          checkAndDispatchQuotaError(err);
+          setRouteError(
+            err?.message ||
+              'Unable to compute live route via Google Maps Routes API.'
+          );
+          return;
         }
       }
 
@@ -238,31 +313,6 @@ function InnerMapController({
       setDestinationPlace(resolvedDest);
 
       try {
-        const request: Record<string, unknown> = {
-          origin: resolvedOrigin ? resolvedOrigin.location : originQuery,
-          destination: resolvedDest ? resolvedDest.location : destinationQuery,
-          travelMode: 'DRIVING',
-          computeAlternativeRoutes: true,
-          fields: [
-            'path',
-            'distanceMeters',
-            'durationMillis',
-            'viewport',
-            'legs',
-            'description',
-          ],
-        };
-
-        const RouteClass = (routesLib as any).Route;
-        const response = await RouteClass.computeRoutes(request);
-        if (cancelled) return;
-
-        setRouteLoading(false);
-        const routes = response?.routes;
-        if (!routes || routes.length === 0) {
-          setRouteError('No driving route returned for this corridor.');
-          return;
-        }
 
         // Choose active route index based on selectedRouteId ('primary' -> 0, 'alt_1' -> 1, 'alt_2' -> 2)
         const desiredIdx =
@@ -717,9 +767,9 @@ export function CorridorMap(props: CorridorMapProps) {
             </span>
           </div>
           <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2 mt-0.5">
-            <span>{props.originQuery}</span>
+            <span>{props.originQuery.trim() || 'Origin'}</span>
             <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-            <span>{props.destinationQuery}</span>
+            <span>{props.destinationQuery.trim() || 'Destination'}</span>
           </h2>
         </div>
 
@@ -875,9 +925,9 @@ export function CorridorMap(props: CorridorMapProps) {
         </div>
 
         <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1.5">
-          <span>0% · {props.originQuery.split(',')[0]}</span>
+          <span>0% · {props.originQuery.split(',')[0].trim() || 'Origin'}</span>
           <span>50% · Mid-Corridor Checkpoints</span>
-          <span>100% · {props.destinationQuery.split(',')[0]}</span>
+          <span>100% · {props.destinationQuery.split(',')[0].trim() || 'Destination'}</span>
         </div>
       </div>
     </section>

@@ -53,23 +53,23 @@ import { AlertRulesSection } from './components/AlertRulesSection';
 const INITIAL_ROUTES: RouteCandidate[] = [
   {
     id: 'primary',
-    label: 'Primary Sarjapur Main Rd Corridor',
-    summaryTag: 'Direct arterial via Carmelaram & Iblur approach',
+    label: 'Primary Direct Arterial Corridor',
+    summaryTag: 'Main direct arterial approach',
     baseDurationMinutes: 36,
     distanceKm: 14.2,
     isPrimaryDefault: true,
   },
   {
     id: 'alt_1',
-    label: 'Kodathi – Hadosiddapura Bypass',
-    summaryTag: 'Bypasses central rail crossing bottleneck',
+    label: 'Secondary Bypass Route',
+    summaryTag: 'Bypasses central junction bottleneck',
     baseDurationMinutes: 41,
     distanceKm: 15.8,
   },
   {
     id: 'alt_2',
-    label: 'Varthur – Outer Ring Road Link',
-    summaryTag: 'Wide multi-lane eastern connector',
+    label: 'Outer Ring / Express Connector',
+    summaryTag: 'Wide multi-lane connector corridor',
     baseDurationMinutes: 45,
     distanceKm: 17.6,
   },
@@ -179,13 +179,23 @@ export default function App() {
   // Quota banner state (Google Maps Platform Section 8 Case A)
   const [quotaExceeded, setQuotaExceeded] = useState<boolean>(false);
 
-  // User-Selectable Origin & Destination State (defaults to Sompura Gate -> Zetwerk Bellandur Office)
-  const [originQuery, setOriginQuery] = useState<string>(
-    'Sompura Gate, Sarjapur Road, Bengaluru'
-  );
-  const [destinationQuery, setDestinationQuery] = useState<string>(
-    'Zetwerk Bellandur Office, Bengaluru'
-  );
+  // User-Selectable Origin & Destination State (starts empty unless provided via shared URL params)
+  const [originQuery, setOriginQuery] = useState<string>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('origin')?.trim() || '';
+    } catch {
+      return '';
+    }
+  });
+  const [destinationQuery, setDestinationQuery] = useState<string>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('destination')?.trim() || '';
+    } catch {
+      return '';
+    }
+  });
 
   // Departure Time Offset (0 = Live Now, 15 = +15m, 30 = +30m, 60 = Peak 9 AM)
   const [departureOffsetMinutes, setDepartureOffsetMinutes] =
@@ -385,11 +395,10 @@ export default function App() {
     weatherFetchCount,
   ]);
 
-  // Periodic 30-second live traffic refresh when enabled
+  // Periodic 30-second live traffic timestamp sync when enabled (does not re-poll Places/Routes APIs automatically)
   useEffect(() => {
     if (!autoRefreshEnabled) return;
     const interval = window.setInterval(() => {
-      setManualPollCounter((c) => c + 1);
       setLastSyncedLabel(
         new Date().toLocaleTimeString([], {
           hour: '2-digit',
@@ -920,8 +929,8 @@ export default function App() {
     (i) => i.category === 'construction'
   ).length;
 
-  const shortOrigin = originQuery.split(',')[0].trim();
-  const shortDest = destinationQuery.split(',')[0].trim();
+  const shortOrigin = originQuery.split(',')[0].trim() || 'Origin';
+  const shortDest = destinationQuery.split(',')[0].trim() || 'Destination';
 
   // Handlers
   const handleManualTrafficRefresh = () => {
@@ -1003,8 +1012,8 @@ export default function App() {
     >
       {/* Mandatory Demo Key Quota Banner (Section 8 Case A) */}
       {quotaExceeded && (
-        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
-          <span>
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm sticky top-0 z-50 shadow-sm flex items-center justify-between gap-3">
+          <span className="flex-1 text-center">
             Google Maps Platform quota reached. If you are the app owner, visit{' '}
             <a
               href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
@@ -1016,6 +1025,14 @@ export default function App() {
             </a>{' '}
             for instructions to update your account.
           </span>
+          <button
+            type="button"
+            onClick={() => setQuotaExceeded(false)}
+            aria-label="Dismiss Google Maps quota notice"
+            className="p-1 text-amber-800 hover:text-amber-950 cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -1402,7 +1419,7 @@ export default function App() {
               }
               selectedIncidentId={selectedIncidentId}
               onLiveRouteComputed={handleLiveRouteComputed}
-              refreshTrigger={departureOffsetMinutes + manualPollCounter}
+              refreshTrigger={manualPollCounter}
               weatherAdvisory={weatherAdvisory}
               activeCommuteProgressRatio={
                 isCommuteActive ? commuteProgressRatio : null

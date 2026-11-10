@@ -131,33 +131,6 @@ export interface CommutePreset {
   destination: string;
 }
 
-const COMMUTE_PRESETS: CommutePreset[] = [
-  {
-    id: 'sompura-zetwerk',
-    label: 'Sompura Gate → Zetwerk Bellandur',
-    origin: 'Sompura Gate, Sarjapur Road, Bengaluru',
-    destination: 'Zetwerk Bellandur Office, Bengaluru',
-  },
-  {
-    id: 'hsr-zetwerk',
-    label: 'HSR Layout → Zetwerk Bellandur',
-    origin: 'HSR Layout Sector 2, Bengaluru',
-    destination: 'Zetwerk Bellandur Office, Bengaluru',
-  },
-  {
-    id: 'whitefield-ecity',
-    label: 'Whitefield → Electronic City',
-    origin: 'Whitefield, Bengaluru',
-    destination: 'Electronic City Phase 1, Bengaluru',
-  },
-  {
-    id: 'indiranagar-manyata',
-    label: 'Indiranagar → Manyata Tech Park',
-    origin: 'Indiranagar 100 Feet Road, Bengaluru',
-    destination: 'Manyata Tech Park, Hebbal, Bengaluru',
-  },
-];
-
 interface RouteEndpointsPickerProps {
   originQuery: string;
   destinationQuery: string;
@@ -179,6 +152,18 @@ export function RouteEndpointsPicker({
   const [originFocused, setOriginFocused] = useState<boolean>(false);
   const [destFocused, setDestFocused] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [savedCommutes, setSavedCommutes] = useState<CommutePreset[]>(() => {
+    try {
+      const raw = window.localStorage.getItem('corridorpulse-user-saved-commutes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return [];
+  });
 
   useEffect(() => {
     setOriginDraft(originQuery);
@@ -212,7 +197,9 @@ export function RouteEndpointsPicker({
     setOriginDraft(nextOrigin);
     setDestinationDraft(nextDest);
     setValidationError(null);
-    onApplyEndpoints(nextOrigin, nextDest);
+    if (nextOrigin && nextDest) {
+      onApplyEndpoints(nextOrigin, nextDest);
+    }
   };
 
   const handlePresetClick = (preset: CommutePreset) => {
@@ -222,6 +209,58 @@ export function RouteEndpointsPicker({
     onApplyEndpoints(preset.origin, preset.destination);
   };
 
+  const handleSaveCurrentCommute = () => {
+    const check = validateRouteEndpoints(originDraft, destinationDraft);
+    if (!check.valid) {
+      setValidationError(check.error);
+      return;
+    }
+    const cleanOrig = originDraft.trim();
+    const cleanDest = destinationDraft.trim();
+    const shortOrig = cleanOrig.split(',')[0].trim();
+    const shortDest = cleanDest.split(',')[0].trim();
+    const newPreset: CommutePreset = {
+      id: `${shortOrig.toLowerCase()}-${shortDest.toLowerCase()}-${Date.now()}`,
+      label: `${shortOrig} → ${shortDest}`,
+      origin: cleanOrig,
+      destination: cleanDest,
+    };
+    const nextList = [
+      newPreset,
+      ...savedCommutes.filter(
+        (p) =>
+          !(
+            p.origin.toLowerCase() === cleanOrig.toLowerCase() &&
+            p.destination.toLowerCase() === cleanDest.toLowerCase()
+          )
+      ),
+    ].slice(0, 6);
+    setSavedCommutes(nextList);
+    try {
+      window.localStorage.setItem(
+        'corridorpulse-user-saved-commutes',
+        JSON.stringify(nextList)
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const handleRemoveSavedCommute = (id: string) => {
+    const nextList = savedCommutes.filter((p) => p.id !== id);
+    setSavedCommutes(nextList);
+    try {
+      window.localStorage.setItem(
+        'corridorpulse-user-saved-commutes',
+        JSON.stringify(nextList)
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const hasSelectedCorridor =
+    originQuery.trim().length > 0 && destinationQuery.trim().length > 0;
   const shortOriginTitle = originQuery.split(',')[0].trim();
   const shortDestTitle = destinationQuery.split(',')[0].trim();
 
@@ -239,7 +278,9 @@ export function RouteEndpointsPicker({
             <span>Search or choose any starting point and destination</span>
           </div>
           <h1 className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
-            {shortOriginTitle} → {shortDestTitle}
+            {hasSelectedCorridor
+              ? `${shortOriginTitle} → ${shortDestTitle}`
+              : 'Select Starting Point & Destination'}
           </h1>
         </div>
 
@@ -303,7 +344,7 @@ export function RouteEndpointsPicker({
                 setOriginDraft(e.target.value);
                 if (validationError) setValidationError(null);
               }}
-              placeholder="Enter starting point (e.g., Sompura Gate, HSR Layout...)"
+              placeholder="Search or enter starting location..."
               aria-label="Origin location"
               className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-300 rounded-md text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
@@ -393,7 +434,7 @@ export function RouteEndpointsPicker({
                 setDestinationDraft(e.target.value);
                 if (validationError) setValidationError(null);
               }}
-              placeholder="Enter destination (e.g., Zetwerk Bellandur, Whitefield...)"
+              placeholder="Search or enter destination location..."
               aria-label="Destination location"
               className="w-full pl-8 pr-8 py-2 text-xs bg-slate-50 border border-slate-300 rounded-md text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
@@ -470,31 +511,63 @@ export function RouteEndpointsPicker({
         </p>
       )}
 
-      {/* Quick-Select Commute Presets */}
-      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-        <span className="text-[11px] font-medium text-slate-500 inline-flex items-center gap-1">
-          <Bookmark className="w-3 h-3 text-slate-400" />
-          <span>Saved Commutes:</span>
-        </span>
-        {COMMUTE_PRESETS.map((preset) => {
-          const isCurrent =
-            originQuery.toLowerCase() === preset.origin.toLowerCase() &&
-            destinationQuery.toLowerCase() === preset.destination.toLowerCase();
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => handlePresetClick(preset)}
-              className={`px-2.5 py-1 text-xs rounded-md border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
-                isCurrent
-                  ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold'
-                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              {preset.label}
-            </button>
-          );
-        })}
+      {/* User-Saved Commutes Strip (no pre-filled hardcoded locations) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium text-slate-500 inline-flex items-center gap-1">
+            <Bookmark className="w-3 h-3 text-slate-400" />
+            <span>Saved Commutes:</span>
+          </span>
+          {savedCommutes.length === 0 ? (
+            <span className="text-[11px] text-slate-400">
+              No saved routes yet — enter an origin and destination above to search or save your commute.
+            </span>
+          ) : (
+            savedCommutes.map((preset) => {
+              const isCurrent =
+                originQuery.toLowerCase() === preset.origin.toLowerCase() &&
+                destinationQuery.toLowerCase() ===
+                  preset.destination.toLowerCase();
+              return (
+                <div
+                  key={preset.id}
+                  className={`inline-flex items-center rounded-md border text-xs transition-colors ${
+                    isCurrent
+                      ? 'bg-blue-50 border-blue-300 text-blue-800 font-semibold'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handlePresetClick(preset)}
+                    className="px-2.5 py-1 cursor-pointer whitespace-nowrap"
+                  >
+                    {preset.label}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSavedCommute(preset.id)}
+                    aria-label={`Remove saved commute ${preset.label}`}
+                    className="pr-2 pl-0.5 py-1 text-slate-400 hover:text-red-600 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {(originDraft.trim().length >= 2 || destinationDraft.trim().length >= 2) && (
+          <button
+            type="button"
+            onClick={handleSaveCurrentCommute}
+            className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+          >
+            <Bookmark className="w-3 h-3" />
+            <span>Save Route</span>
+          </button>
+        )}
       </div>
     </section>
   );

@@ -97,7 +97,7 @@ export function ReportIncidentModal({
               Report Corridor Traffic Incident
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Alert commuters along the Sompura Gate to Zetwerk Bellandur route
+              Alert commuters along your selected commute corridor
             </p>
           </div>
           <button

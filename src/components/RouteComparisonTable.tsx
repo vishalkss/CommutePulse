@@ -36,7 +36,7 @@ export function RouteComparisonTable({
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Real-time comparison factoring active accidents and roadwork along your
-            Sompura Gate to Bellandur commute
+            selected commute corridor
           </p>
         </div>
         {lastUpdatedIso && (

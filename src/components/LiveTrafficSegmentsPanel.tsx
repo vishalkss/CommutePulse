@@ -34,8 +34,8 @@ export function LiveTrafficSegmentsPanel({
   onToggleAutoRefresh,
   onManualRefresh,
 }: LiveTrafficSegmentsPanelProps) {
-  const shortOrigin = originQuery.split(',')[0].trim();
-  const shortDest = destinationQuery.split(',')[0].trim();
+  const shortOrigin = originQuery.split(',')[0].trim() || 'Origin';
+  const shortDest = destinationQuery.split(',')[0].trim() || 'Destination';
 
   return (
     <section

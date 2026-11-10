@@ -246,8 +246,8 @@ export function computeCorridorSegmentTelemetry(
   selectedRoute: EvaluatedRoute,
   incidents: CorridorIncident[],
   isReversed = false,
-  originName = 'Sompura Gate',
-  destinationName = 'Zetwerk Bellandur Office',
+  originName = '',
+  destinationName = '',
   liveSteps: RawRouteStepInput[] = []
 ): CorridorSegmentTelemetry[] {
   const shortOrigin = originName.split(',')[0].trim() || 'Origin';
@@ -692,8 +692,8 @@ export interface CommuteHistoryAnalytics {
 export function computeCommuteHistoryAnalytics(
   selectedRoute: EvaluatedRoute,
   incidents: CorridorIncident[],
-  originName = 'Sompura Gate',
-  destinationName = 'Zetwerk Bellandur Office'
+  originName = '',
+  destinationName = ''
 ): CommuteHistoryAnalytics {
   const shortOrigin = originName.split(',')[0].trim() || 'Origin';
   const shortDestination =
@@ -1072,8 +1072,8 @@ export function evaluateDepartureThresholdPush(
   recommendedRoute: EvaluatedRoute,
   savedDepartureTime = '08:30 AM',
   typicalThresholdMinutes?: number,
-  originName = 'Sompura Gate',
-  destinationName = 'Zetwerk Bellandur Office'
+  originName = '',
+  destinationName = ''
 ): DepartureThresholdPushPayload {
   const shortOrigin = originName.split(',')[0].trim() || 'Origin';
   const shortDest = destinationName.split(',')[0].trim() || 'Destination';
@@ -1281,8 +1281,8 @@ export interface WeatherTrafficAdvisory {
  */
 export function evaluateWeatherTrafficImpact(
   weather: CorridorWeatherRawData,
-  originName = 'Sompura Gate',
-  destinationName = 'Zetwerk Bellandur Office',
+  originName = '',
+  destinationName = '',
   baseDurationMinutes = 36
 ): WeatherTrafficAdvisory {
   const shortOrigin = originName.split(',')[0].trim() || 'Origin';
