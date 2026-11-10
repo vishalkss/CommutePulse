@@ -1,6 +1,10 @@
 {
   "name": "CorridorPulse: Sompura Gate to Bellandur Traffic Alerter",
   "description": "Live traffic jam alerter and smart bypass advisor for the Sompura Gate to Zetwerk Bellandur Office commute corridor, featuring real-time accident and construction delay notifications.",
-  "requestFramePermissions": ["geolocation"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
